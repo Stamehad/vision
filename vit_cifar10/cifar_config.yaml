@@ -1,0 +1,22 @@
+model:
+  img_size: 32        # Image size (CIFAR-10: 32x32)
+  patch_size: 2       # Patch size (2x2)
+  in_channels: 3      # Input channels (RGB)
+  emb_dim: 24         # Embedding dimension (hidden size)
+  num_heads: 3        # Number of attention heads
+  num_layers: 6       # Number of Transformer encoder layers
+  mlp_ratio: 4        # Expansion ratio for MLP
+  dropout: 0.1        # Dropout probability
+  num_classes: 10     # Number of classes (CIFAR-10)
+
+training:
+  batch_size: 64      # Batch size for training
+  epochs: 10          # Total number of training epochs
+  learning_rate: 0.001  # Initial learning rate
+  weight_decay: 0.0005 # L2 regularization
+  optimizer: "adamw"   # Optimizer (adamw, sgd, rmsprop)
+  scheduler: "cosine"  # Learning rate scheduler (cosine, step, none)
+
+hardware:
+  device: "mps"       # Device: "cpu", "cuda", "mps" (for Apple Silicon)
+  num_workers: 4      # Number of dataloader workers
