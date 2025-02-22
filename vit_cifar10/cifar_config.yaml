@@ -11,6 +11,7 @@ model:
 
 training:
   batch_size: 64      # Batch size for training
+  num_workers: 4      # Number of dataloader workers
   epochs: 10          # Total number of training epochs
   learning_rate: 0.001  # Initial learning rate
   weight_decay: 0.0005 # L2 regularization
