@@ -9,6 +9,7 @@ class VIT(pl.LightningModule):
         super().__init__()
         self.config_train = config["training"]
         num_classes = config["model"].get("num_classes", 10)
+        self.lr = self.config_train["learning_rate"]
         
         # Initialize ViT model and loss function
         self.vit = ViT(config["model"])

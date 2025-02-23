@@ -7,6 +7,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from torchvision import datasets, transforms
 from dataloader import get_dataloaders
 from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.tuner.tuning import Tuner
 
 # 1. Function to Load Config File
 def load_config(config_path):
@@ -20,6 +21,7 @@ def parse_args():
     parser.add_argument("--epochs", type=int, help="Override number of epochs")
     parser.add_argument("--batch_size", type=int, help="Override batch size")
     parser.add_argument("--lr", type=float, help="Override learning rate")
+    parser.add_argument("--checkpoint", type=str, default=None, help="Path to a checkpoint file to resume training")
     return parser.parse_args()
 
 # 3. Main Training Function
@@ -61,10 +63,27 @@ def main():
         accelerator="mps" if torch.backends.mps.is_available() else "cpu",
         logger=logger,  # Enable TensorBoard logging
         callbacks=[checkpoint_callback, early_stop_callback],
+        #limit_train_batches=0.1, # Limit training to 20 batches per epoch for testing
+        #limit_val_batches=0.1, # Limit validation to 10 batches per epoch for testing
     )
 
+    # # Find the optimal learning rate
+    # tuner = Tuner(trainer)
+    # lr_finder = tuner.lr_find(model, train_dataloaders=train_loader, val_dataloaders=test_loader)
+
+    # # Plot results
+    # fig = lr_finder.plot(suggest=True)
+    # fig.show()
+
+    # # Suggested LR
+    # new_lr = lr_finder.suggestion()
+    # print(f"Suggested LR: {new_lr}")
+
     # Train
-    trainer.fit(model, train_loader, test_loader)
+    if args.checkpoint:
+        trainer.fit(model, train_loader, test_loader, ckpt_path=args.checkpoint)
+    else:
+        trainer.fit(model, train_loader, test_loader)
 
     # Test after training
     trainer.test(model, test_loader)
