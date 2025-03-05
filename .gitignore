@@ -2,3 +2,6 @@
 __pycache__/
 venv/
 .DS_Store # Ignore macOS system files
+vit_cifar10/lightning_logs/
+vit_cifar10/data/
+.gitignore
