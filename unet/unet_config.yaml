@@ -1,0 +1,27 @@
+model:
+  in_channels: 3         # Input channels (RGB)
+  out_channels: 3        # Output classes (3 for binary segmentation)
+  base_filters: 32       # Number of base filters for U-Net
+
+data:
+  batch_size: 16         # Batch size
+  num_workers: 4         # Dataloader workers
+  image_size: 128        # Image resolution
+
+training:
+  epochs: 50             # Number of epochs
+  checkpoint_dir: "checkpoints/unet"  # Where to save model checkpoints
+  log_dir: "logs/unet"   # TensorBoard logs
+  seed: 42               # Random seed
+
+optimizer:
+  learning_rate: 0.0005  # Learning rate
+  weight_decay: 0.0001   # Weight decay
+  T_max: 20               # Cosine Annealing scheduler max steps
+
+trainer:
+  gpus: 1                # Use 1 GPU (set 0 for CPU, or "mps" for Apple MPS)
+  precision: 16          # Mixed precision (16-bit floating point for efficiency)
+  log_every_n_steps: 10  # Log every 10 steps
+  accumulate_grad_batches: 1  # Gradient accumulation steps
+  deterministic: True     # Ensure reproducibility
