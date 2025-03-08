@@ -1,6 +1,6 @@
 model:
   in_channels: 3         # Input channels (RGB)
-  out_channels: 3        # Output classes (3 for binary segmentation)
+  out_channels: 1        # Output classes (3 for binary segmentation)
   base_filters: 32       # Number of base filters for U-Net
 
 data:
@@ -17,7 +17,7 @@ training:
 optimizer:
   learning_rate: 0.0005  # Learning rate
   weight_decay: 0.0001   # Weight decay
-  T_max: 20               # Cosine Annealing scheduler max steps
+  T_max: 25               # Cosine Annealing scheduler max steps
 
 trainer:
   gpus: 1                # Use 1 GPU (set 0 for CPU, or "mps" for Apple MPS)

@@ -4,6 +4,7 @@ import yaml
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
+from datetime import datetime 
 
 def load_config(config_path):
     """Load YAML config file."""
@@ -29,13 +30,17 @@ def setup_trainer(config, trial_mode=False, profiler=None):
     checkpoint_dir = os.path.join("checkpoints", experiment_name)
     os.makedirs(checkpoint_dir, exist_ok=True)
 
+    # Generate timestamp in "hh-mm_dd-mm-yy" format
+    timestamp = datetime.now().strftime("%H-%M_%d-%m-%y")
+
     # Custom checkpoint filename
     checkpoint_callback = ModelCheckpoint(
         monitor="val_loss", 
         save_top_k=3,  # Keep top 3 models
         mode="min", 
         dirpath=checkpoint_dir, 
-        filename="UNET_epoch={epoch:02d}_val_loss={val_loss:.4f}"  # Custom filename format
+        filename=f"UNET_{timestamp}_epoch={{epoch:02d}}_val_loss={{val_loss:.4f}}"
+        #filename="UNET_epoch={epoch:02d}_val_loss={val_loss:.4f}"  # Custom filename format
     )
 
     early_stop_callback = EarlyStopping(monitor="val_loss", patience=3, mode="min")

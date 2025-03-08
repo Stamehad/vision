@@ -5,7 +5,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 import pytorch_lightning as pl
 from torchmetrics import Dice, Accuracy
 
-from unet_tiny import TinyUNet
+from src.unet_tiny import TinyUNet
 
 def multiclass_dice_score(preds, targets, num_classes=3, epsilon=1e-6):
     """Computes Dice Score for multi-class segmentation."""
@@ -81,6 +81,20 @@ class UNetPL(pl.LightningModule):
 
         self.log("val_loss", loss, on_epoch=True, prog_bar=True, logger=True)
         self.log_dict({"val_dice": dice_score, "val_acc": acc}, prog_bar=True)
+
+        return loss
+    
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y = y.squeeze(1).long().to(self.device)
+        y_hat = self(x)
+        loss = self.criterion(y_hat, y)
+
+        # Compute metrics
+        dice_score, acc = get_metrics(y_hat, y)
+
+        self.log("test_loss", loss, on_epoch=True, prog_bar=True, logger=True)
+        self.log_dict({"test_dice": dice_score, "test_acc": acc}, prog_bar=True)
 
         return loss
 

@@ -17,6 +17,10 @@ class AttentionGate(nn.Module):
         self.W_g = nn.Conv2d(F_g, F_int, kernel_size=1, stride=1, padding=0, bias=True)
         self.W_x = nn.Conv2d(F_l, F_int, kernel_size=1, stride=1, padding=0, bias=True)
 
+        # ✅ Add GroupNorm to stabilize the feature map transformations
+        self.norm_g = nn.GroupNorm(num_groups=1, num_channels=F_int)
+        self.norm_x = nn.GroupNorm(num_groups=1, num_channels=F_int)
+
         # Attention map (sigmoid activation)
         self.psi = nn.Conv2d(F_int, 1, kernel_size=1, stride=1, padding=0, bias=True)
         self.sigmoid = nn.Sigmoid()
@@ -27,8 +31,8 @@ class AttentionGate(nn.Module):
         g = Decoder feature map (gate signal).
         """
         # Linear transformations
-        g1 = self.W_g(g)
-        x1 = self.W_x(x)
+        g1 = self.norm_g(self.W_g(g))
+        x1 = self.norm_x(self.W_x(x))
 
         # Sum + ReLU activation
         psi = F.relu(g1 + x1)

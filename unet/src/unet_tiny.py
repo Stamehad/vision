@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from unet_parts import EncoderBlock, DecoderBlock
+from src.unet_parts import EncoderBlock, DecoderBlock
 import os
 import sys
 
@@ -26,8 +26,10 @@ class TinyUNet(nn.Module):
         # Bottleneck (No further downsampling)
         self.bottleneck = nn.Sequential(
             nn.Conv2d(base_filters * 4, base_filters * 4, kernel_size=3, padding=1),
+            nn.GroupNorm(num_groups=1, num_channels=base_filters * 4),
             nn.ReLU(inplace=True),
             nn.Conv2d(base_filters * 4, base_filters * 4, kernel_size=3, padding=1),
+            nn.GroupNorm(num_groups=1, num_channels=base_filters * 4),
             nn.ReLU(inplace=True),
         )  # (B, 128, 16, 16) → (B, 128, 16, 16)
 
@@ -40,9 +42,12 @@ class TinyUNet(nn.Module):
         self.dec1 = DecoderBlock(base_filters * 2, base_filters)      # (B, 32, 64, 64) → (B, 16, 128, 128)
 
         # Final segmentation output
+        self.final_norm = nn.GroupNorm(num_groups=1, num_channels=base_filters) 
         self.final_conv = nn.Conv2d(base_filters, out_channels, kernel_size=1)  # (B, 32, 64, 64) → (B, 3, 64, 64)
+        torch.nn.init.xavier_uniform_(self.final_conv.weight)
+        self.final_conv.bias.data.fill_(0)  # 🔹 This sets all biases to zero
 
-    @debug_hook
+    #@debug_hook
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass of Tiny U-Net."""
         # Encoder path
@@ -58,4 +63,6 @@ class TinyUNet(nn.Module):
         x = self.dec2(x, x2)  # (B, 64, 32, 32) → (B, 32, 64, 64)
         x = self.dec1(x, x1)  # (B, 32, 64, 64) → (B, 16, 128, 128)
 
+        # Final prediction
+        x = self.final_norm(x)
         return self.final_conv(x)  # (B, 32, 64, 64) → (B, 3, 64, 64)
