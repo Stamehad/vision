@@ -15,7 +15,7 @@ class TinyUNet(nn.Module):
 
         # unpack the config dictionary
         in_channels = config.get("in_channels", 3)
-        out_channels = config.get("out_channels", 3)
+        out_channels = config.get("out_channels", 1)
         base_filters = config.get("base_filters", 32)
 
         # Encoder (Downsampling)
@@ -43,7 +43,7 @@ class TinyUNet(nn.Module):
 
         # Final segmentation output
         self.final_norm = nn.GroupNorm(num_groups=1, num_channels=base_filters) 
-        self.final_conv = nn.Conv2d(base_filters, out_channels, kernel_size=1)  # (B, 32, 64, 64) → (B, 3, 64, 64)
+        self.final_conv = nn.Conv2d(base_filters, out_channels, kernel_size=1)  # (B, 32, 64, 64) → (B, 1, 64, 64)
         torch.nn.init.xavier_uniform_(self.final_conv.weight)
         self.final_conv.bias.data.fill_(0)  # 🔹 This sets all biases to zero
 
@@ -65,4 +65,4 @@ class TinyUNet(nn.Module):
 
         # Final prediction
         x = self.final_norm(x)
-        return self.final_conv(x)  # (B, 32, 64, 64) → (B, 3, 64, 64)
+        return self.final_conv(x)  # (B, 32, 64, 64) → (B, 1, 64, 64)

@@ -5,6 +5,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
 from datetime import datetime 
+import time
 
 def load_config(config_path):
     """Load YAML config file."""
@@ -53,7 +54,7 @@ def setup_trainer(config, trial_mode=False, profiler=None):
         "max_epochs": 1 if trial_mode else config["optimizer"]["T_max"],
         "accelerator": "mps" if torch.backends.mps.is_available() else "cpu",
         "logger": logger,
-        "callbacks": [checkpoint_callback, early_stop_callback],
+        "callbacks": [checkpoint_callback, early_stop_callback, EpochTimerCallback()],
         "profiler": profiler,  # Add profiler if available
     }
 
@@ -62,3 +63,12 @@ def setup_trainer(config, trial_mode=False, profiler=None):
         trainer_args["limit_val_batches"] = 0.1
 
     return pl.Trainer(**trainer_args), checkpoint_dir
+
+class EpochTimerCallback(pl.Callback):
+    def on_train_epoch_start(self, trainer, pl_module):
+        pl_module.start_time = time.time()
+
+    def on_train_epoch_end(self, trainer, pl_module):
+        epoch_duration = time.time() - pl_module.start_time
+        trainer.logger.experiment.add_scalar("epoch_time", epoch_duration, trainer.current_epoch)
+        print(f"Epoch {trainer.current_epoch} time: {epoch_duration:.2f} sec")

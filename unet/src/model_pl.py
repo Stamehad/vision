@@ -3,42 +3,25 @@ import torch.nn as nn
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 import pytorch_lightning as pl
-from torchmetrics import Dice, Accuracy
 
 from src.unet_tiny import TinyUNet
 
-def multiclass_dice_score(preds, targets, num_classes=3, epsilon=1e-6):
-    """Computes Dice Score for multi-class segmentation."""
-    dice_scores = []
-    
-    for class_idx in range(num_classes):
-        pred_mask = (preds == class_idx).float()
-        true_mask = (targets == class_idx).float()
+def binary_dice_score(preds, targets, epsilon=1e-6):
+    """Computes Dice Score for binary segmentation."""
+    preds = (preds > 0.5).float()  # Convert to binary predictions
+    intersection = (preds * targets).sum()
+    union = preds.sum() + targets.sum()
 
-        intersection = (pred_mask * true_mask).sum()
-        union = pred_mask.sum() + true_mask.sum()
+    dice = (2. * intersection + epsilon) / (union + epsilon)
+    return dice
 
-        dice = (2. * intersection + epsilon) / (union + epsilon)
-        dice_scores.append(dice)
-
-    return torch.mean(torch.stack(dice_scores))  # Average over all classes
-
-def multiclass_accuracy(preds, targets):
-    """Computes accuracy for multi-class segmentation."""
-    correct = (preds == targets).sum().item()
-    total = targets.numel()
-    return correct / total
-
-def get_metrics(y_hat, y):
-    """Returns Dice Score and Accuracy for multi-class segmentation."""
-    # Convert logits to class indices
-    y_hat_class = torch.argmax(y_hat, dim=1)  # Shape: (B, H, W)
-    y = y.long()  # Ensure targets are long type
-
-    # Compute Dice Score and Accuracy
-    dice = multiclass_dice_score(y_hat_class, y)
-    acc = multiclass_accuracy(y_hat_class, y)
-    return dice, acc
+def binary_accuracy(preds, targets):
+    """Computes accuracy for binary segmentation."""
+    preds = (preds > 0.5).float()  # Convert logits to binary (0 or 1)
+    return (preds == targets).float().mean().item()
+    # correct = (preds == targets).sum().item()
+    # total = targets.numel()
+    # return correct / total
 
 class UNetPL(pl.LightningModule):
     def __init__(self, config):
@@ -48,22 +31,28 @@ class UNetPL(pl.LightningModule):
         self.weight_decay = config["optimizer"]["weight_decay"]
         self.T_max = config["optimizer"].get("T_max", 50)
 
-        self.save_hyperparameters(config)  # Save config automatically
-        self.model = TinyUNet(config["model"])
+        self.save_hyperparameters(config)
+        self.model = TinyUNet(config["model"])  # Still using TinyUNet
 
-        self.criterion = nn.CrossEntropyLoss()  # Multi-class Segmentation Loss
+        self.criterion = nn.BCEWithLogitsLoss()  # ✅ Use binary loss
 
     def forward(self, x):
-        return self.model(x.to(self.device))
+        return self.model(x.to(self.device))  # Shape: (B, 1, H, W)
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
-        y = y.squeeze(1).long().to(self.device)  # Ensure shape is (B, H, W)
-        y_hat = self(x)
-        loss = self.criterion(y_hat, y)
+        x, y = batch # x.shape = (B, 3, H, W), y.shape = (B, 1, H, W)
+        y = y.squeeze(1).float().to(self.device)  # Convert to float (NOT long)
+        y = (y > 0).float()  # Converts 0 → 0 and anything else → 1
+
+        y_hat = self(x).squeeze(1)  # Remove channel dim
+        loss = self.criterion(y_hat, y)  # Binary loss
+
+        # Apply sigmoid for probability outputs
+        y_hat_prob = torch.sigmoid(y_hat)
 
         # Compute metrics
-        dice_score, acc = get_metrics(y_hat, y)
+        dice_score = binary_dice_score(y_hat_prob, y)
+        acc = binary_accuracy(y_hat_prob, y)
 
         self.log("train_loss", loss, on_epoch=True, prog_bar=True, logger=True)
         self.log_dict({"train_dice": dice_score, "train_acc": acc}, on_epoch=True, prog_bar=True, logger=True)
@@ -72,12 +61,15 @@ class UNetPL(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        y = y.squeeze(1).long().to(self.device)  # Ensure shape is (B, H, W)
-        y_hat = self(x)
+        y = y.squeeze(1).float().to(self.device)  # Convert to float (NOT long)
+        y = (y > 0).float()  # Converts 0 → 0 and anything else → 1
+
+        y_hat = self(x).squeeze(1)
         loss = self.criterion(y_hat, y)
 
-        # Compute metrics
-        dice_score, acc = get_metrics(y_hat, y)
+        y_hat_prob = torch.sigmoid(y_hat)
+        dice_score = binary_dice_score(y_hat_prob, y)
+        acc = binary_accuracy(y_hat_prob, y)
 
         self.log("val_loss", loss, on_epoch=True, prog_bar=True, logger=True)
         self.log_dict({"val_dice": dice_score, "val_acc": acc}, prog_bar=True)
@@ -86,12 +78,15 @@ class UNetPL(pl.LightningModule):
     
     def test_step(self, batch, batch_idx):
         x, y = batch
-        y = y.squeeze(1).long().to(self.device)
-        y_hat = self(x)
+        y = y.squeeze(1).float().to(self.device)  # Convert to float (NOT long)
+        y = (y > 0).float()  # Converts 0 → 0 and anything else → 1
+
+        y_hat = self(x).squeeze(1)
         loss = self.criterion(y_hat, y)
 
-        # Compute metrics
-        dice_score, acc = get_metrics(y_hat, y)
+        y_hat_prob = torch.sigmoid(y_hat)
+        dice_score = binary_dice_score(y_hat_prob, y)
+        acc = binary_accuracy(y_hat_prob, y)
 
         self.log("test_loss", loss, on_epoch=True, prog_bar=True, logger=True)
         self.log_dict({"test_dice": dice_score, "test_acc": acc}, prog_bar=True)
@@ -100,8 +95,5 @@ class UNetPL(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-        
         scheduler = CosineAnnealingLR(optimizer, T_max=self.T_max)
-
         return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "val_loss"}
-        

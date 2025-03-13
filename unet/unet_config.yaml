@@ -4,7 +4,7 @@ model:
   base_filters: 32       # Number of base filters for U-Net
 
 data:
-  batch_size: 16         # Batch size
+  batch_size: 64 #16         # Batch size
   num_workers: 4         # Dataloader workers
   image_size: 128        # Image resolution
 
@@ -17,7 +17,7 @@ training:
 optimizer:
   learning_rate: 0.0005  # Learning rate
   weight_decay: 0.0001   # Weight decay
-  T_max: 25               # Cosine Annealing scheduler max steps
+  T_max: 20               # Cosine Annealing scheduler max steps
 
 trainer:
   gpus: 1                # Use 1 GPU (set 0 for CPU, or "mps" for Apple MPS)

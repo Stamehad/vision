@@ -36,10 +36,10 @@ def main():
     model = UNetPL(config)
 
     # Setup Trainer
-    trainer, checkpoint_dir = setup_trainer(config)
+    trainer, checkpoint_dir = setup_trainer(config) #, profiler="simple")
 
     # Initial test
-    trainer.test(model, val_loader)
+    #trainer.test(model, val_loader)
 
     # Start Training
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader, ckpt_path=args.checkpoint)
